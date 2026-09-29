@@ -312,6 +312,10 @@
   </div>
 
   <script>
+    // ★ [필수 설정] 여기에 발급받으신 Apps Script 웹 앱 URL(exec)을 입력해두면,
+    // 전사 임직원이 별도 설정 없이 링크만 누르면 바로 연동됩니다!
+    const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSOyEmlT9UBfacs7QR0mvMoTKjNuXiXUMz_lyrCqTtxL_m2lX-7AB1zyG0CXrs5XF4cQ/exec"; 
+
     // 19개 표준 부서 및 조직 그룹
     const DEPARTMENTS = [
       { id: "SYS_1", group: "SYSTEM본부", name: "[SYSTEM본부] SEC영업팀" },
@@ -340,7 +344,15 @@
       { id: "EXEC",  group: "경영진",   name: "[경영진] CEO,COO,본부장 (PEOPLE팀 대행)" }
     ];
 
-    let apiEndpoint = localStorage.getItem('eoc_sheet_url') || '';
+    // URL 파라미터(?url=...) 또는 로컬스토리지 또는 기본 상수값 우선순위 적용
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramUrl = urlParams.get('url');
+    if (paramUrl) {
+      localStorage.setItem('eoc_sheet_url', paramUrl);
+    }
+
+    const savedUrl = localStorage.getItem('eoc_sheet_url');
+    let apiEndpoint = paramUrl || (savedUrl && savedUrl.trim() !== "" ? savedUrl : DEFAULT_SCRIPT_URL);
 
     // 숫자 스테퍼 조작 함수
     function stepNumber(inputId, delta) {
@@ -541,7 +553,8 @@
     }
 
     function saveApiEndpoint() {
-      apiEndpoint = document.getElementById('apiEndpointInput').value.trim();
+      const inputVal = document.getElementById('apiEndpointInput').value.trim();
+      apiEndpoint = inputVal || DEFAULT_SCRIPT_URL;
       localStorage.setItem('eoc_sheet_url', apiEndpoint);
       closeModal('configModal');
       showToast("API URL이 저장되었습니다.");
@@ -573,12 +586,9 @@
         renderModalDeptList(e.target.value);
       });
 
-      // URL 파라미터로 endpoint가 넘어오는 경우 자동 세팅 (?url=https://...)
-      const urlParams = new URLSearchParams(window.location.search);
-      const paramUrl = urlParams.get('url');
-      if (paramUrl) {
-        apiEndpoint = paramUrl;
-        localStorage.setItem('eoc_sheet_url', apiEndpoint);
+      // 만약 여전히 endpoint가 비어 있다면 안내
+      if (!apiEndpoint) {
+        console.warn("Apps Script URL이 지정되지 않았습니다. 상단 DEFAULT_SCRIPT_URL 또는 설정을 확인하세요.");
       }
     };
   </script>
