@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>비상대피 부서별 인원점호 모바일 보고</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      background-color: #0b111e;
+      color: #f1f5f9;
+      -webkit-tap-highlight-color: transparent;
+    }
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { 
+      -webkit-appearance: none; 
+      margin: 0; 
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- Top Banner / Header -->
+  <header class="bg-[#10192e] border-b border-slate-800 px-4 py-3 sticky top-0 z-30 shadow-md">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-red-500/20 border border-red-500/40 flex items-center justify-center text-red-400">
+          <i data-lucide="shield-alert" class="w-4 h-4 animate-pulse"></i>
+        </div>
+        <div>
+          <h1 class="text-sm font-extrabold text-white">비상대피 점호 보고</h1>
+          <p class="text-[11px] text-slate-400">부서 안전담당자 전용 보고창</p>
+        </div>
+      </div>
+      <button onclick="openConfigModal()" title="API 설정" class="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 border border-slate-700">
+        <i data-lucide="settings" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Form Formular -->
+  <main class="max-w-md mx-auto w-full p-4 space-y-4 flex-1">
+
+    <!-- Emergency Guide Notice -->
+    <div class="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-2.5">
+      <i data-lucide="info" class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5"></i>
+      <p class="text-[11px] text-amber-200/90 leading-relaxed">
+        집결지에서 파악된 인원을 기재해 주십시오. 인원 변동 시 <strong>재제출하시면 최신 제출 건으로 자동 덮어쓰기</strong> 집계됩니다.
+      </p>
+    </div>
+
+    <form id="evacReportForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+
+      <!-- 1. 부서 선택 (상위 본부별 아코디언 선택형 모달 또는 직관적 선택기) -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2">
+        <label class="block text-xs font-bold text-slate-300 flex items-center justify-between">
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="building-2" class="w-3.5 h-3.5 text-sky-400"></i>
+            1. 점검 부서 선택 <span class="text-red-400">*</span>
+          </span>
+          <span id="selectedDeptBadge" class="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-slate-800 text-slate-400">선택 필요</span>
+        </label>
+
+        <!-- Department Trigger Selector Box -->
+        <button type="button" onclick="openDeptSelectModal()" id="deptSelectTrigger" 
+          class="w-full bg-[#141e33] hover:bg-[#1a2742] border border-slate-700 rounded-xl px-3.5 py-3 text-left flex items-center justify-between transition group">
+          <span id="deptSelectLabel" class="text-xs text-slate-400 font-medium">소속 부서를 탭하여 선택하세요</span>
+          <i data-lucide="chevron-right" class="w-4 h-4 text-slate-400 group-hover:text-white transition"></i>
+        </button>
+        <input type="hidden" id="selectedDeptInput" name="dept" required>
+      </div>
+
+      <!-- 2. 점검자(보고자) 성명 -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-1.5">
+        <label for="submitterInput" class="block text-xs font-bold text-slate-300 flex items-center gap-1.5">
+          <i data-lucide="user-check" class="w-3.5 h-3.5 text-sky-400"></i>
+          2. 점검(보고)자 성명 <span class="text-red-400">*</span>
+        </label>
+        <input type="text" id="submitterInput" name="submitter" required placeholder="예: 홍길동 (담당자 본인 성함)"
+          class="w-full bg-[#141e33] border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition">
+      </div>
+
+      <!-- 3. [임직원] 인원 카운트 -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+            <i data-lucide="users" class="w-3.5 h-3.5 text-emerald-400"></i>
+            3. 소속 임직원 인원 (자사 직원)
+          </span>
+          <span id="empDiffTag" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+            전원 대피
+          </span>
+        </div>
+
+        <!-- 금일 재실 총원 -->
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-xs font-medium text-slate-300">금일 재실 총원</div>
+            <div class="text-[10px] text-slate-500">휴가/출장자 제외한 당일 출근자</div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="stepNumber('empTotal', -1)" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm font-bold flex items-center justify-center active:scale-95">−</button>
+            <input type="number" id="empTotal" name="empTotal" value="10" min="0" 
+              class="w-16 bg-[#141e33] border border-slate-700 rounded-lg py-1.5 text-center text-sm font-bold text-white focus:outline-none focus:border-sky-500">
+            <button type="button" onclick="stepNumber('empTotal', 1)" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm font-bold flex items-center justify-center active:scale-95">+</button>
+          </div>
+        </div>
+
+        <!-- 옥외 대피 완료 인원 -->
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-xs font-medium text-emerald-300">대피 완료 인원</div>
+            <div class="text-[10px] text-slate-500">집결지에 도착 확인된 직원</div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="stepNumber('empDone', -1)" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm font-bold flex items-center justify-center active:scale-95">−</button>
+            <input type="number" id="empDone" name="empDone" value="10" min="0" 
+              class="w-16 bg-[#141e33] border border-slate-700 rounded-lg py-1.5 text-center text-sm font-bold text-emerald-400 focus:outline-none focus:border-emerald-500">
+            <button type="button" onclick="stepNumber('empDone', 1)" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm font-bold flex items-center justify-center active:scale-95">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. [협력사/내방객] 인원 카운트 -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+          <span class="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+            <i data-lucide="user-plus" class="w-3.5 h-3.5 text-amber-400"></i>
+            4. 협력사 / 상주업체 / 내방객 (인솔 대상)
+          </span>
+          <span id="guestDiffTag" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+            해당 없음(0명)
+          </span>
+        </div>
+
+        <!-- 협력사 총원 -->
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-xs font-medium text-slate-300">인솔 대상 총원</div>
+            <div class="text-[10px] text-slate-500">없을 경우 0 유지</div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="stepNumber('guestTotal', -1)" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm font-bold flex items-center justify-center active:scale-95">−</button>
+            <input type="number" id="guestTotal" name="guestTotal" value="0" min="0" 
+              class="w-16 bg-[#141e33] border border-slate-700 rounded-lg py-1.5 text-center text-sm font-bold text-white focus:outline-none focus:border-amber-500">
+            <button type="button" onclick="stepNumber('guestTotal', 1)" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm font-bold flex items-center justify-center active:scale-95">+</button>
+          </div>
+        </div>
+
+        <!-- 협력사 대피 완료 -->
+        <div class="flex items-center justify-between">
+          <div>
+            <div class="text-xs font-medium text-amber-300">대피 완료 인원</div>
+            <div class="text-[10px] text-slate-500">집결지 동반 대피 확인 인원</div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button type="button" onclick="stepNumber('guestDone', -1)" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm font-bold flex items-center justify-center active:scale-95">−</button>
+            <input type="number" id="guestDone" name="guestDone" value="0" min="0" 
+              class="w-16 bg-[#141e33] border border-slate-700 rounded-lg py-1.5 text-center text-sm font-bold text-amber-400 focus:outline-none focus:border-amber-500">
+            <button type="button" onclick="stepNumber('guestDone', 1)" class="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 text-slate-200 text-sm font-bold flex items-center justify-center active:scale-95">+</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. 미대피자 추정 위치 및 특이사항 -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2">
+        <label for="noteInput" class="block text-xs font-bold text-slate-300 flex items-center justify-between">
+          <span class="flex items-center gap-1.5">
+            <i data-lucide="message-square" class="w-3.5 h-3.5 text-sky-400"></i>
+            5. 미대피자 위치 추정 및 특이사항
+          </span>
+          <span class="text-[10px] text-slate-500">선택</span>
+        </label>
+        
+        <!-- 원터치 빠른 템플릿 입력 칩 -->
+        <div class="flex flex-wrap gap-1.5 pt-0.5">
+          <button type="button" onclick="fillTemplate('특이사항 없음 (전원 안전 대피)')" class="text-[10px] px-2 py-1 rounded-md bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-700">
+            ✓ 특이사항 없음
+          </button>
+          <button type="button" onclick="fillTemplate('잔류 1명 위치 확인 중')" class="text-[10px] px-2 py-1 rounded-md bg-slate-800 text-amber-300 hover:bg-slate-700 border border-slate-700">
+            ⚠️ 잔류 확인 중
+          </button>
+          <button type="button" onclick="fillTemplate('고객사 미팅객 동반 대피')" class="text-[10px] px-2 py-1 rounded-md bg-slate-800 text-sky-300 hover:bg-slate-700 border border-slate-700">
+            🤝 내방객 동반 대피
+          </button>
+        </div>
+
+        <textarea id="noteInput" name="note" rows="2" placeholder="미확인자 이름 및 예상 층/위치, 부상자 여부 등을 적어주세요."
+          class="w-full bg-[#141e33] border border-slate-700 rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500 transition leading-relaxed"></textarea>
+      </div>
+
+      <!-- Submit Big Button -->
+      <div class="pt-1">
+        <button type="submit" id="submitBtn" 
+          class="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 active:scale-[0.98] text-white font-extrabold text-sm shadow-lg shadow-red-900/30 flex items-center justify-center gap-2 transition">
+          <i data-lucide="send" class="w-4 h-4"></i>
+          <span id="submitBtnText">점호 현황 즉시 보고</span>
+        </button>
+      </div>
+
+    </form>
+  </main>
+
+  <footer class="py-3 text-center text-[10px] text-slate-500 border-t border-slate-900">
+    소방대피 종합상황실 관제 연동 시스템 • 안전환경팀
+  </footer>
+
+  <!-- Department Selection Bottom Sheet / Modal (19개 부서 그룹핑) -->
+  <div id="deptModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end justify-center p-0 sm:p-4">
+    <div class="bg-[#0f172a] border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl">
+      <!-- Modal Header -->
+      <div class="px-4 py-3.5 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i data-lucide="building-2" class="w-4 h-4 text-sky-400"></i>
+          <span class="text-sm font-bold text-white">소속 부서 선택 (19개 부서)</span>
+        </div>
+        <button onclick="closeDeptModal()" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Quick Search Bar -->
+      <div class="p-3 border-b border-slate-800 bg-[#0d1424]">
+        <div class="relative">
+          <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5"></i>
+          <input type="text" id="deptSearchModalInput" placeholder="부서명 검색 (예: 제조, SEC, 영업, 재무)" 
+            class="w-full bg-[#141e33] border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
+        </div>
+      </div>
+
+      <!-- Department List Accordion Groups -->
+      <div id="modalDeptListContainer" class="p-3 overflow-y-auto space-y-2 flex-1">
+        <!-- Injected Dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Submission Success Modal -->
+  <div id="successModal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-[#111a2e] border border-emerald-500/50 rounded-2xl max-w-sm w-full p-5 text-center space-y-3.5 shadow-2xl">
+      <div class="w-12 h-12 bg-emerald-500/20 border border-emerald-500/40 rounded-full flex items-center justify-center mx-auto text-emerald-400 animate-bounce">
+        <i data-lucide="check" class="w-6 h-6"></i>
+      </div>
+      <div>
+        <h3 class="text-base font-extrabold text-white">점호 보고 접수 완료!</h3>
+        <p class="text-xs text-slate-300 mt-1" id="successDeptText">[SYSTEM본부] SEC영업팀</p>
+        <p class="text-[11px] text-emerald-400 font-mono mt-0.5" id="successTimeText">접수 시각: 14:05:22</p>
+      </div>
+      <div class="p-3 bg-black/40 border border-slate-800 rounded-xl text-left text-xs space-y-1 text-slate-300">
+        <div class="flex justify-between">
+          <span class="text-slate-400">보고자:</span>
+          <span class="font-bold text-white" id="successSubmitterText">홍길동</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">임직원:</span>
+          <span class="font-bold text-emerald-400" id="successEmpText">12 / 12명 대피</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">협력사:</span>
+          <span class="font-bold text-amber-400" id="successGuestText">1 / 1명 대피</span>
+        </div>
+      </div>
+      <p class="text-[11px] text-slate-400 leading-tight">
+        지휘본부 실시간 대시보드에 즉시 반영되었습니다.<br>
+        추가 변동이 생기면 언제든 다시 보고하실 수 있습니다.
+      </p>
+      <div class="pt-1 flex gap-2">
+        <button onclick="closeModal('successModal')" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200">
+          창 닫기
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Settings Modal -->
+  <div id="configModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-sm w-full p-4 space-y-3">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-1.5 text-sky-400 font-bold text-sm">
+          <i data-lucide="link" class="w-4 h-4"></i>
+          <span>Apps Script API 설정</span>
+        </div>
+        <button onclick="closeModal('configModal')" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <div class="space-y-2 text-xs">
+        <label class="block font-semibold text-slate-300 text-[11px]">배포된 구글 웹 앱 URL (exec 링크)</label>
+        <input type="text" id="apiEndpointInput" placeholder="https://script.google.com/macros/s/.../exec" 
+          class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-slate-200 text-xs font-mono focus:outline-none focus:border-sky-500">
+        <p class="text-[10px] text-slate-400 leading-snug">
+          대시보드와 동일한 Apps Script 웹 앱 배포 URL을 입력해 두시면 모바일 제출이 시트로 바로 연동됩니다.
+        </p>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="saveApiEndpoint()" class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs">
+          저장
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Alert/Toast Modal -->
+  <div id="appToast" class="fixed bottom-6 inset-x-4 max-w-sm mx-auto z-50 transform translate-y-24 opacity-0 transition-all duration-300 bg-slate-800/95 border border-slate-700 text-slate-100 px-4 py-2.5 rounded-xl shadow-2xl flex items-center justify-center gap-2 text-xs">
+    <i data-lucide="info" class="w-4 h-4 text-sky-400" id="toastIcon"></i>
+    <span id="toastMsg">알림 메시지</span>
+  </div>
+
+  <script>
+    // 19개 표준 부서 및 조직 그룹
+    const DEPARTMENTS = [
+      { id: "SYS_1", group: "SYSTEM본부", name: "[SYSTEM본부] SEC영업팀" },
+      { id: "SYS_2", group: "SYSTEM본부", name: "[SYSTEM본부] SKH영업팀" },
+      { id: "SYS_3", group: "SYSTEM본부", name: "[SYSTEM본부] CS팀(CS1G,CS2G)" },
+      { id: "SYS_4", group: "SYSTEM본부", name: "[SYSTEM본부] 제조팀(설비기술G)" },
+      { id: "SYS_5", group: "SYSTEM본부", name: "[SYSTEM본부] 생산기술팀(기구G,제어G,TSG)" },
+      { id: "SYS_6", group: "SYSTEM본부", name: "[SYSTEM본부] 품질G" },
+
+      { id: "LAB_1", group: "연구소", name: "[연구소] 신제품개발G" },
+      { id: "LAB_2", group: "연구소", name: "[연구소] 연구기술G" },
+      { id: "LAB_3", group: "연구소", name: "[연구소] 정제기TF" },
+
+      { id: "MGT_1", group: "경영지원본부", name: "[경영지원본부] 기획팀(EPC원가관리G)" },
+      { id: "MGT_2", group: "경영지원본부", name: "[경영지원본부] 재무팀(회계G,자금G)" },
+      { id: "MGT_3", group: "경영지원본부", name: "[경영지원본부] 구매팀" },
+      { id: "MGT_4", group: "경영지원본부", name: "[경영지원본부] 준법G" },
+
+      { id: "HR_1", group: "인사본부", name: "[인사본부] PEOPLE팀" },
+      { id: "HR_2", group: "인사본부", name: "[인사본부] CULTURE팀" },
+      { id: "HR_3", group: "인사본부", name: "[인사본부] 정보전략팀" },
+
+      { id: "DIR_1", group: "직속 조직", name: "안전환경팀(안전관리G)" },
+      { id: "DIR_2", group: "직속 조직", name: "글로벌사업개발팀" },
+
+      { id: "EXEC",  group: "경영진",   name: "[경영진] CEO,COO,본부장 (PEOPLE팀 대행)" }
+    ];
+
+    let apiEndpoint = localStorage.getItem('eoc_sheet_url') || '';
+
+    // 숫자 스테퍼 조작 함수
+    function stepNumber(inputId, delta) {
+      const el = document.getElementById(inputId);
+      let val = (parseInt(el.value, 10) || 0) + delta;
+      if (val < 0) val = 0;
+      el.value = val;
+      checkDifferences();
+    }
+
+    // 인원 차이 배지 감지
+    function checkDifferences() {
+      const empTotal = parseInt(document.getElementById('empTotal').value, 10) || 0;
+      const empDone = parseInt(document.getElementById('empDone').value, 10) || 0;
+      const empDiff = empTotal - empDone;
+      const empTag = document.getElementById('empDiffTag');
+
+      if (empDiff > 0) {
+        empTag.innerText = `잔류/미확인 ${empDiff}명`;
+        empTag.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse";
+      } else {
+        empTag.innerText = `전원 대피`;
+        empTag.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30";
+      }
+
+      const guestTotal = parseInt(document.getElementById('guestTotal').value, 10) || 0;
+      const guestDone = parseInt(document.getElementById('guestDone').value, 10) || 0;
+      const guestDiff = guestTotal - guestDone;
+      const guestTag = document.getElementById('guestDiffTag');
+
+      if (guestTotal === 0) {
+        guestTag.innerText = "해당 없음(0명)";
+        guestTag.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700";
+      } else if (guestDiff > 0) {
+        guestTag.innerText = `잔류 ${guestDiff}명`;
+        guestTag.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/40 animate-pulse";
+      } else {
+        guestTag.innerText = `인솔 전원완료 (${guestDone}명)`;
+        guestTag.className = "text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30";
+      }
+    }
+
+    // 특이사항 템플릿 입력
+    function fillTemplate(text) {
+      const area = document.getElementById('noteInput');
+      if (area.value.trim() === '' || area.value === '특이사항 없음') {
+        area.value = text;
+      } else {
+        area.value = area.value + ', ' + text;
+      }
+      area.focus();
+    }
+
+    // 부서 선택 모달 렌더링
+    function openDeptSelectModal() {
+      renderModalDeptList('');
+      document.getElementById('deptModal').classList.remove('hidden');
+      document.getElementById('deptSearchModalInput').value = '';
+      lucide.createIcons();
+    }
+
+    function closeDeptModal() {
+      document.getElementById('deptModal').classList.add('hidden');
+    }
+
+    function renderModalDeptList(filterQuery) {
+      const container = document.getElementById('modalDeptListContainer');
+      container.innerHTML = '';
+
+      const query = filterQuery.toLowerCase().trim();
+      const groups = {};
+
+      DEPARTMENTS.forEach(d => {
+        if (!groups[d.group]) groups[d.group] = [];
+        groups[d.group].push(d);
+      });
+
+      Object.keys(groups).forEach(groupName => {
+        const list = groups[groupName].filter(item => {
+          return !query || item.name.toLowerCase().includes(query) || groupName.toLowerCase().includes(query);
+        });
+
+        if (list.length === 0) return;
+
+        const groupBlock = document.createElement('div');
+        groupBlock.className = "space-y-1.5 pt-1";
+
+        const title = document.createElement('div');
+        title.className = "text-[11px] font-extrabold text-sky-400 uppercase tracking-wider px-1";
+        title.innerText = groupName;
+        groupBlock.appendChild(title);
+
+        list.forEach(dept => {
+          const btn = document.createElement('button');
+          btn.type = "button";
+          btn.className = "w-full text-left p-2.5 rounded-xl bg-slate-900 hover:bg-sky-950/40 border border-slate-800 hover:border-sky-500/50 flex items-center justify-between text-xs text-slate-200 transition active:scale-[0.98]";
+          
+          const cleanName = dept.name.replace(/\[.*?\]\s*/, '');
+          btn.innerHTML = `
+            <span class="font-medium">${cleanName}</span>
+            <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 group-hover:opacity-100"></i>
+          `;
+          btn.onclick = () => selectDepartment(dept.name);
+          groupBlock.appendChild(btn);
+        });
+
+        container.appendChild(groupBlock);
+      });
+
+      lucide.createIcons();
+    }
+
+    function selectDepartment(deptFullName) {
+      document.getElementById('selectedDeptInput').value = deptFullName;
+      document.getElementById('deptSelectLabel').innerHTML = `<span class="text-white font-bold text-xs">${deptFullName}</span>`;
+      document.getElementById('selectedDeptBadge').innerText = "선택 완료";
+      document.getElementById('selectedDeptBadge').className = "text-[10px] px-2 py-0.5 rounded-full font-bold bg-sky-500/20 text-sky-300 border border-sky-500/30";
+      closeDeptModal();
+    }
+
+    // 폼 제출 처리 (Apps Script doPost 연동)
+    async function handleFormSubmit(e) {
+      e.preventDefault();
+
+      const dept = document.getElementById('selectedDeptInput').value;
+      if (!dept) {
+        showToast("소속 부서를 선택해 주세요.");
+        openDeptSelectModal();
+        return;
+      }
+
+      const submitter = document.getElementById('submitterInput').value.trim();
+      const empTotal = parseInt(document.getElementById('empTotal').value, 10) || 0;
+      const empDone = parseInt(document.getElementById('empDone').value, 10) || 0;
+      const guestTotal = parseInt(document.getElementById('guestTotal').value, 10) || 0;
+      const guestDone = parseInt(document.getElementById('guestDone').value, 10) || 0;
+      const note = document.getElementById('noteInput').value.trim() || '특이사항 없음';
+
+      const payload = {
+        dept,
+        submitter,
+        empTotal,
+        empDone,
+        guestTotal,
+        guestDone,
+        note
+      };
+
+      const btn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('submitBtnText');
+      btn.disabled = true;
+      btnText.innerText = "상황실 전송 중...";
+
+      if (!apiEndpoint) {
+        // API 엔드포인트가 없을 경우 알림 및 설정 모달
+        setTimeout(() => {
+          btn.disabled = false;
+          btnText.innerText = "점호 현황 즉시 보고";
+          openConfigModal();
+          showToast("Apps Script 웹 앱 URL이 설정되지 않았습니다.");
+        }, 600);
+        return;
+      }
+
+      try {
+        // Apps Script의 웹앱 POST 호출 (CORS 지원)
+        await fetch(apiEndpoint, {
+          method: 'POST',
+          mode: 'no-cors', // Apps Script 리다이렉트 대응용
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        // 성공 모달 띄우기
+        const nowStr = new Date().toLocaleTimeString('ko-KR');
+        document.getElementById('successDeptText').innerText = dept;
+        document.getElementById('successTimeText').innerText = `보고 시각: ${nowStr}`;
+        document.getElementById('successSubmitterText').innerText = submitter;
+        document.getElementById('successEmpText').innerText = `${empDone} / ${empTotal}명 대피`;
+        document.getElementById('successGuestText').innerText = `${guestDone} / ${guestTotal}명 대피`;
+
+        document.getElementById('successModal').classList.remove('hidden');
+        lucide.createIcons();
+
+      } catch (err) {
+        console.error("Submission failed:", err);
+        showToast("전송 중 네트워크 오류가 발생했습니다. 다시 시도해 주세요.");
+      } finally {
+        btn.disabled = false;
+        btnText.innerText = "점호 현황 즉시 보고";
+      }
+    }
+
+    // 설정 모달
+    function openConfigModal() {
+      document.getElementById('apiEndpointInput').value = apiEndpoint;
+      document.getElementById('configModal').classList.remove('hidden');
+    }
+
+    function saveApiEndpoint() {
+      apiEndpoint = document.getElementById('apiEndpointInput').value.trim();
+      localStorage.setItem('eoc_sheet_url', apiEndpoint);
+      closeModal('configModal');
+      showToast("API URL이 저장되었습니다.");
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.add('hidden');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('appToast');
+      document.getElementById('toastMsg').innerText = msg;
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      setTimeout(() => {
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 2500);
+    }
+
+    window.onload = function() {
+      lucide.createIcons();
+
+      // 인원 입력 시 실시간 차이 계산 이벤트 연결
+      ['empTotal', 'empDone', 'guestTotal', 'guestDone'].forEach(id => {
+        document.getElementById(id).addEventListener('input', checkDifferences);
+      });
+
+      // 검색창 실시간 필터링
+      document.getElementById('deptSearchModalInput').addEventListener('input', (e) => {
+        renderModalDeptList(e.target.value);
+      });
+
+      // URL 파라미터로 endpoint가 넘어오는 경우 자동 세팅 (?url=https://...)
+      const urlParams = new URLSearchParams(window.location.search);
+      const paramUrl = urlParams.get('url');
+      if (paramUrl) {
+        apiEndpoint = paramUrl;
+        localStorage.setItem('eoc_sheet_url', apiEndpoint);
+      }
+    };
+  </script>
+</body>
+</html>
