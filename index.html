@@ -43,7 +43,7 @@
     </div>
   </header>
 
-  <!-- Main Form Formular -->
+  <!-- Main Form Container -->
   <main class="max-w-md mx-auto w-full p-4 space-y-4 flex-1">
 
     <!-- Emergency Guide Notice -->
@@ -56,7 +56,7 @@
 
     <form id="evacReportForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
 
-      <!-- 1. 부서 선택 (상위 본부별 아코디언 선택형 모달 또는 직관적 선택기) -->
+      <!-- 1. 부서 선택 -->
       <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2">
         <label class="block text-xs font-bold text-slate-300 flex items-center justify-between">
           <span class="flex items-center gap-1.5">
@@ -210,14 +210,14 @@
     소방대피 종합상황실 관제 연동 시스템 • 안전환경팀
   </footer>
 
-  <!-- Department Selection Bottom Sheet / Modal (19개 부서 그룹핑) -->
+  <!-- Department Selection Bottom Sheet / Modal (18개 부서 그룹핑) -->
   <div id="deptModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-end justify-center p-0 sm:p-4">
     <div class="bg-[#0f172a] border-t sm:border border-slate-700 rounded-t-3xl sm:rounded-2xl w-full max-w-md max-h-[85vh] flex flex-col shadow-2xl">
       <!-- Modal Header -->
       <div class="px-4 py-3.5 border-b border-slate-800 flex items-center justify-between">
         <div class="flex items-center gap-2">
           <i data-lucide="building-2" class="w-4 h-4 text-sky-400"></i>
-          <span class="text-sm font-bold text-white">소속 부서 선택 (19개 부서)</span>
+          <span class="text-sm font-bold text-white">소속 부서 선택</span>
         </div>
         <button onclick="closeDeptModal()" class="text-slate-400 hover:text-white p-1">
           <i data-lucide="x" class="w-5 h-5"></i>
@@ -228,7 +228,7 @@
       <div class="p-3 border-b border-slate-800 bg-[#0d1424]">
         <div class="relative">
           <i data-lucide="search" class="w-3.5 h-3.5 text-slate-500 absolute left-3 top-2.5"></i>
-          <input type="text" id="deptSearchModalInput" placeholder="부서명 검색 (예: 제조, SEC, 영업, 재무)" 
+          <input type="text" id="deptSearchModalInput" placeholder="부서명/담당 검색 (예: 본부장, SEC, 제조, 연구소)" 
             class="w-full bg-[#141e33] border border-slate-700 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-500">
         </div>
       </div>
@@ -248,7 +248,7 @@
       </div>
       <div>
         <h3 class="text-base font-extrabold text-white">점호 보고 접수 완료!</h3>
-        <p class="text-xs text-slate-300 mt-1" id="successDeptText">[SYSTEM본부] SEC영업팀</p>
+        <p class="text-xs text-slate-300 mt-1" id="successDeptText">SEC영업팀 (SYSTEM본부장)</p>
         <p class="text-[11px] text-emerald-400 font-mono mt-0.5" id="successTimeText">접수 시각: 14:05:22</p>
       </div>
       <div class="p-3 bg-black/40 border border-slate-800 rounded-xl text-left text-xs space-y-1 text-slate-300">
@@ -312,36 +312,40 @@
   </div>
 
   <script>
-    // ★ [필수 설정] 여기에 발급받으신 Apps Script 웹 앱 URL(exec)을 입력해두면,
-    // 전사 임직원이 별도 설정 없이 링크만 누르면 바로 연동됩니다!
     const DEFAULT_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSOyEmlT9UBfacs7QR0mvMoTKjNuXiXUMz_lyrCqTtxL_m2lX-7AB1zyG0CXrs5XF4cQ/exec"; 
 
-    // 19개 표준 부서 및 조직 그룹
+    // 재정의된 표준 부서 및 조직 그룹 (현황판과 100% 동일한 명칭)
     const DEPARTMENTS = [
-      { id: "SYS_1", group: "SYSTEM본부", name: "[SYSTEM본부] SEC영업팀" },
-      { id: "SYS_2", group: "SYSTEM본부", name: "[SYSTEM본부] SKH영업팀" },
-      { id: "SYS_3", group: "SYSTEM본부", name: "[SYSTEM본부] CS팀(CS1G,CS2G)" },
-      { id: "SYS_4", group: "SYSTEM본부", name: "[SYSTEM본부] 제조팀(설비기술G)" },
-      { id: "SYS_5", group: "SYSTEM본부", name: "[SYSTEM본부] 생산기술팀(기구G,제어G,TSG)" },
-      { id: "SYS_6", group: "SYSTEM본부", name: "[SYSTEM본부] 품질G" },
+      // [SYSTEM본부] (6개)
+      { id: "SYS_1", group: "SYSTEM본부", name: "SEC영업팀 (SYSTEM본부장)" },
+      { id: "SYS_2", group: "SYSTEM본부", name: "SKH영업팀" },
+      { id: "SYS_3", group: "SYSTEM본부", name: "CS팀(CS1G,CS2G)" },
+      { id: "SYS_4", group: "SYSTEM본부", name: "제조팀(설비기술G)" },
+      { id: "SYS_5", group: "SYSTEM본부", name: "생산기술팀(기구G,제어G,TSG)" },
+      { id: "SYS_6", group: "SYSTEM본부", name: "품질G" },
 
-      { id: "LAB_1", group: "연구소", name: "[연구소] 신제품개발G" },
-      { id: "LAB_2", group: "연구소", name: "[연구소] 연구기술G" },
-      { id: "LAB_3", group: "연구소", name: "[연구소] 정제기TF" },
+      // [연구소] (3개)
+      { id: "LAB_1", group: "연구소", name: "신제품개발G (연구소장, GSS, SCR)" },
+      { id: "LAB_2", group: "연구소", name: "연구기술G (연구지원)" },
+      { id: "LAB_3", group: "연구소", name: "정제기TF" },
 
-      { id: "MGT_1", group: "경영지원본부", name: "[경영지원본부] 기획팀(EPC원가관리G)" },
-      { id: "MGT_2", group: "경영지원본부", name: "[경영지원본부] 재무팀(회계G,자금G)" },
-      { id: "MGT_3", group: "경영지원본부", name: "[경영지원본부] 구매팀" },
-      { id: "MGT_4", group: "경영지원본부", name: "[경영지원본부] 준법G" },
+      // [경영지원본부] (4개)
+      { id: "MGT_1", group: "경영지원본부", name: "기획팀 (경영지원본부장, EPC원가관리G)" },
+      { id: "MGT_2", group: "경영지원본부", name: "재무팀(회계G,자금G)" },
+      { id: "MGT_3", group: "경영지원본부", name: "구매팀" },
+      { id: "MGT_4", group: "경영지원본부", name: "준법G" },
 
-      { id: "HR_1", group: "인사본부", name: "[인사본부] PEOPLE팀" },
-      { id: "HR_2", group: "인사본부", name: "[인사본부] CULTURE팀" },
-      { id: "HR_3", group: "인사본부", name: "[인사본부] 정보전략팀" },
+      // [인사본부] (3개)
+      { id: "HR_1", group: "인사본부", name: "PEOPLE팀 (인사본부장, GA G)" },
+      { id: "HR_2", group: "인사본부", name: "CULTURE팀" },
+      { id: "HR_3", group: "인사본부", name: "정보전략팀" },
 
-      { id: "DIR_1", group: "직속 조직", name: "안전환경팀(안전관리G)" },
-      { id: "DIR_2", group: "직속 조직", name: "글로벌사업개발팀" },
+      // [EPC본부] (1개 - 하위부서 없음)
+      { id: "EPC_1", group: "EPC본부", name: "EPC본부" },
 
-      { id: "EXEC",  group: "경영진",   name: "[경영진] CEO,COO,본부장 (PEOPLE팀 대행)" }
+      // 직속 조직 (2개)
+      { id: "DIR_1", group: "직속 조직", name: "안전환경팀 (CEO, 안전관리G)" },
+      { id: "DIR_2", group: "직속 조직", name: "글로벌사업개발팀 (COO, 글로벌사업개발G, 기술지원TF)" }
     ];
 
     // URL 파라미터(?url=...) 또는 로컬스토리지 또는 기본 상수값 우선순위 적용
@@ -441,8 +445,8 @@
         groupBlock.className = "space-y-1.5 pt-1";
 
         const title = document.createElement('div');
-        title.className = "text-[11px] font-extrabold text-sky-400 uppercase tracking-wider px-1";
-        title.innerText = groupName;
+        title.className = "text-[11px] font-extrabold text-sky-400 uppercase tracking-wider px-1 flex items-center justify-between";
+        title.innerHTML = `<span>${groupName}</span><span class="text-[10px] font-normal text-slate-500">${list.length}개 팀</span>`;
         groupBlock.appendChild(title);
 
         list.forEach(dept => {
@@ -450,9 +454,8 @@
           btn.type = "button";
           btn.className = "w-full text-left p-2.5 rounded-xl bg-slate-900 hover:bg-sky-950/40 border border-slate-800 hover:border-sky-500/50 flex items-center justify-between text-xs text-slate-200 transition active:scale-[0.98]";
           
-          const cleanName = dept.name.replace(/\[.*?\]\s*/, '');
           btn.innerHTML = `
-            <span class="font-medium">${cleanName}</span>
+            <span class="font-medium">${dept.name}</span>
             <i data-lucide="check" class="w-3.5 h-3.5 text-sky-400 opacity-0 group-hover:opacity-100"></i>
           `;
           btn.onclick = () => selectDepartment(dept.name);
@@ -507,7 +510,6 @@
       btnText.innerText = "상황실 전송 중...";
 
       if (!apiEndpoint) {
-        // API 엔드포인트가 없을 경우 알림 및 설정 모달
         setTimeout(() => {
           btn.disabled = false;
           btnText.innerText = "점호 현황 즉시 보고";
@@ -518,10 +520,9 @@
       }
 
       try {
-        // Apps Script의 웹앱 POST 호출 (CORS 지원)
         await fetch(apiEndpoint, {
           method: 'POST',
-          mode: 'no-cors', // Apps Script 리다이렉트 대응용
+          mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
@@ -586,7 +587,6 @@
         renderModalDeptList(e.target.value);
       });
 
-      // 만약 여전히 endpoint가 비어 있다면 안내
       if (!apiEndpoint) {
         console.warn("Apps Script URL이 지정되지 않았습니다. 상단 DEFAULT_SCRIPT_URL 또는 설정을 확인하세요.");
       }
